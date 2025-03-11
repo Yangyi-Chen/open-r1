@@ -19,47 +19,101 @@ if is_e2b_available():
     load_dotenv()
 
 
+
+def clean_text(text, exclue_chars=['\n', '\r']):
+    # Extract content between <answer> and </answer> if present
+    answer_matches = re.findall(r'<answer>(.*?)</answer>', text, re.DOTALL)
+    if answer_matches:
+        # Use the last match
+        text = answer_matches[-1]
+    
+    for char in exclue_chars:
+        if char in ['\n', '\r']:
+            # If there is a space before the newline, remove the newline
+            text = re.sub(r'(?<=\s)' + re.escape(char), '', text)
+            # If there is no space before the newline, replace it with a space
+            text = re.sub(r'(?<!\s)' + re.escape(char), ' ', text)
+        else:
+            text = text.replace(char, ' ')
+    
+    # Remove leading and trailing spaces and convert to lowercase
+    return text.strip().rstrip('.').lower()
+
+
+
+
+def numeric_reward(content, sol, **kwargs):
+    content = clean_text(content)
+    sol = clean_text(sol)
+    try:
+        content, sol = float(content), float(sol)
+        return 1.0 if content == sol else 0.0
+    except:
+        return None
+
+
+
+def check_single_accuracy_reward(content, sol, **kwargs):
+    reward = 0.0
+    # Try symbolic verification first for numeric answers
+    try:
+        answer = parse(content)
+        if float(verify(answer, parse(sol))) > 0:
+            reward = 1.0
+    except Exception:
+        pass  # Continue to next verification method if this fails
+
+    # If symbolic verification failed, try string matching or fuzzy matching
+    if reward == 0.0:
+        try:
+            # Extract answer from solution if it has think/answer tags
+            sol_match = re.search(r'<answer>(.*?)</answer>', sol)
+            ground_truth = sol_match.group(1).strip() if sol_match else sol.strip()
+            
+            # Extract answer from content if it has think/answer tags
+            content_matches = re.findall(r'<answer>(.*?)</answer>', content, re.DOTALL)
+            student_answer = content_matches[-1].strip() if content_matches else content.strip()
+            
+            # Check if ground truth contains numbers
+            has_numbers = bool(re.search(r'\d', ground_truth))
+            # Check if it's a multiple choice question
+            # has_choices = extract_choice(ground_truth)
+            
+            if has_numbers:
+                # For numeric answers, use exact matching
+                reward = numeric_reward(student_answer, ground_truth)
+                if reward is None:
+                    reward = 0
+                # if reward is None:
+                #     reward = ratio(clean_text(student_answer), clean_text(ground_truth))
+            else:
+                # text answers 
+                if ground_truth == student_answer or ground_truth in student_answer:
+                    reward = 1.0
+                
+            # elif has_choices:
+            #     # For multiple choice, extract and compare choices
+            #     correct_choice = has_choices.upper()
+            #     student_choice = extract_choice(student_answer)
+            #     if student_choice:
+            #         reward = 1.0 if student_choice == correct_choice else 0.0
+            # else:
+            #     # For text answers, use fuzzy matching
+            #     reward = ratio(clean_text(student_answer), clean_text(ground_truth))
+        except Exception:
+            pass  # Keep reward as 0.0 if all methods fail
+
+    return reward
+
+
+
+
 def accuracy_reward(completions, solution, **kwargs):
     """Reward function that checks if the completion is the same as the ground truth."""
     contents = [completion[0]["content"] for completion in completions]
     rewards = []
     for content, sol in zip(contents, solution):
-        gold_parsed = parse(
-            sol,
-            extraction_mode="first_match",
-            extraction_config=[LatexExtractionConfig()],
-        )
-        if len(gold_parsed) != 0:
-            # We require the answer to be provided in correct latex (no malformed operators)
-            answer_parsed = parse(
-                content,
-                extraction_config=[
-                    LatexExtractionConfig(
-                        normalization_config=NormalizationConfig(
-                            nits=False,
-                            malformed_operators=False,
-                            basic_latex=True,
-                            equations=True,
-                            boxed="all",
-                            units=True,
-                        ),
-                        # Ensures that boxed is tried first
-                        boxed_match_priority=0,
-                        try_extract_without_anchor=False,
-                    )
-                ],
-                extraction_mode="first_match",
-            )
-            # Reward 1 if the content is the same as the ground truth, 0 otherwise
-            try:
-                reward = float(verify(answer_parsed, gold_parsed))
-            except Exception as e:
-                print(f"verify failed: {e}, answer: {answer_parsed}, gold: {gold_parsed}")
-                reward = 0.0
-        else:
-            # If the gold solution is not parseable, we reward 1 to skip this example
-            reward = 1.0
-            print("Failed to parse gold solution: ", sol)
+        reward = check_single_accuracy_reward(content, sol)
         rewards.append(reward)
 
     return rewards
