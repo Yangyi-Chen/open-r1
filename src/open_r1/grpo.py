@@ -175,7 +175,7 @@ def main(script_args, training_args, model_args):
                 # If it's a float or other non-string type, keep it as is
                 item['solution'] = str(solution_value)
 
-            del item['image'] # remove the image column so that it can be loaded later
+            # del item['image'] # remove the image column so that it can be loaded later
             del item['conversations']
             # item['accu_reward_method'] = item.get('accu_reward_method', accu_reward_method) # if accu_reward_method is in the data jsonl, use the value in the data jsonl, otherwise use the defined value
             all_data.append(item)
