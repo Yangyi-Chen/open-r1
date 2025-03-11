@@ -118,14 +118,22 @@ def accuracy_reward(completions, solution, **kwargs):
 
     return rewards
 
-
 def format_reward(completions, **kwargs):
-    """Reward function that checks if the reasoning process is enclosed within <think> and </think> tags, while the final answer is enclosed within <answer> and </answer> tags."""
-    pattern = r"^<think>\n.*?\n</think>\n<answer>\n.*?\n</answer>$"
+    """Reward function that checks if the completion has a specific format."""
+    # pattern = r"<think>.*?</think>\s*<answer>.*?</answer>"
+    pattern = r"(.*?)<answer>.*?</answer>"
     completion_contents = [completion[0]["content"] for completion in completions]
-    matches = [re.match(pattern, content, re.DOTALL | re.MULTILINE) for content in completion_contents]
-    return [1.0 if match else 0.0 for match in matches]
+    matches = [re.fullmatch(pattern, content, re.DOTALL) for content in completion_contents]
+    # current_time = datetime.now().strftime("%d-%H-%M-%S-%f")
+    # if os.getenv("DEBUG_MODE") == "true":
+    #     log_path = os.getenv("LOG_PATH")
+    #     with open(log_path, "a", encoding='utf-8') as f:
+    #         f.write(f"------------- {current_time} Format reward -------------\n")
+    #         for content, match in zip(completion_contents, matches):
+    #             f.write(f"Content: {content}\n")
+    #             f.write(f"Has format: {bool(match)}\n")
 
+    return [1.0 if match else 0.0 for match in matches]
 
 def tag_count_reward(completions, **kwargs) -> list[float]:
     """Reward function that checks if we produce the desired number of think and answer tags associated with `format_reward()`.
