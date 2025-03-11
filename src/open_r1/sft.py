@@ -46,10 +46,11 @@ from datasets import load_dataset
 from transformers import set_seed
 from transformers.trainer_utils import get_last_checkpoint
 
-from open_r1.configs import SFTConfig
-from open_r1.utils import get_tokenizer
-from open_r1.utils.callbacks import get_callbacks
-from open_r1.utils.wandb_logging import init_wandb_training
+
+from src.open_r1.configs import SFTConfig
+from src.open_r1.utils import get_tokenizer
+from src.open_r1.utils.callbacks import get_callbacks
+from src.open_r1.utils.wandb_logging import init_wandb_training
 from trl import (
     ModelConfig,
     ScriptArguments,

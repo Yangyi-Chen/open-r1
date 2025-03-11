@@ -24,8 +24,8 @@ from datasets import load_dataset
 from transformers import set_seed
 from transformers.trainer_utils import get_last_checkpoint
 
-from open_r1.configs import GRPOConfig
-from open_r1.rewards import (
+from src.open_r1.configs import GRPOConfig
+from src.open_r1.rewards import (
     accuracy_reward,
     code_reward,
     format_reward,
@@ -36,9 +36,9 @@ from open_r1.rewards import (
     reasoning_steps_reward,
     tag_count_reward,
 )
-from open_r1.utils import get_tokenizer
-from open_r1.utils.callbacks import get_callbacks
-from open_r1.utils.wandb_logging import init_wandb_training
+from src.open_r1.utils import get_tokenizer
+from src.open_r1.utils.callbacks import get_callbacks
+from src.open_r1.utils.wandb_logging import init_wandb_training
 from trl import GRPOTrainer, ModelConfig, ScriptArguments, TrlParser, get_peft_config
 
 
