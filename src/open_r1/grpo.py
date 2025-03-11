@@ -149,7 +149,35 @@ def main(script_args, training_args, model_args):
         init_wandb_training(training_args)
 
     # Load the dataset
-    dataset = load_dataset(script_args.dataset_name, name=script_args.dataset_config)
+    data_file = script_args.data_file
+    import json
+    from datasets import Dataset
+    all_data = []
+    with open(data_file, 'r') as f:
+        for line in f:
+            item = json.loads(line)
+            # Store image path instead of loading the image
+
+            # Remove immediate image loading
+            item['problem'] = item['conversations'][0]['value'].replace('<image>', '')
+
+            # Handle solution that could be a float or string
+            solution_value = item['conversations'][1]['value']
+            if isinstance(solution_value, str):
+                item['solution'] = solution_value.replace('<answer>', '').replace('</answer>', '').strip()
+            else:
+                # If it's a float or other non-string type, keep it as is
+                item['solution'] = str(solution_value)
+
+            del item['image'] # remove the image column so that it can be loaded later
+            del item['conversations']
+            # item['accu_reward_method'] = item.get('accu_reward_method', accu_reward_method) # if accu_reward_method is in the data jsonl, use the value in the data jsonl, otherwise use the defined value
+            all_data.append(item)
+
+    dataset = Dataset.from_list(all_data)
+
+
+    # dataset = load_dataset(script_args.dataset_name, name=script_args.dataset_config)
 
 
     ################
@@ -180,17 +208,34 @@ def main(script_args, training_args, model_args):
     }
     reward_funcs = [REWARD_FUNCS_REGISTRY[func] for func in script_args.reward_funcs]
 
+
+    def make_conversation_from_jsonl(example):
+        # Don't load image here, just store the path
+        return {
+            'problem': example['problem'],
+            'solution': f"<answer> {example['solution']} </answer>",
+            'prompt': [{
+                'role': 'user',
+                'content': example['problem']
+            }]
+        }
+
+
+    # Map the conversations
+    dataset = dataset.map(make_conversation_from_jsonl, num_proc=8)
+
+
     # Format into conversation
-    def make_conversation(example):
-        prompt = []
+    # def make_conversation(example):
+    #     prompt = []
 
-        if training_args.system_prompt is not None:
-            prompt.append({"role": "system", "content": training_args.system_prompt})
+    #     if training_args.system_prompt is not None:
+    #         prompt.append({"role": "system", "content": training_args.system_prompt})
 
-        prompt.append({"role": "user", "content": example["problem"]})
-        return {"prompt": prompt}
+    #     prompt.append({"role": "user", "content": example["problem"]})
+    #     return {"prompt": prompt}
 
-    dataset = dataset.map(make_conversation)
+    # dataset = dataset.map(make_conversation)
 
     for split in dataset:
         if "messages" in dataset[split].column_names:
