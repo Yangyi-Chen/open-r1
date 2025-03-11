@@ -108,6 +108,12 @@ class GRPOScriptArguments(ScriptArguments):
             "choices": ["python", "javascript", "r", "java", "bash"],
         },
     )
+    data_file: str = field(
+        default="",
+        metadata={"help": "Path to the jsonl file containing the data."},
+    )
+
+
 
 
 def main(script_args, training_args, model_args):
